@@ -9,6 +9,44 @@ Before starting these tasks, ensure you have:
 - Successfully completed the [environment setup](./assignment_1_environment_setup.md)
 - Access to the Pintos development environment
 
+## Git Workflow Setup
+
+**Important:** Follow this Git workflow to avoid merge conflicts and ensure proper submission:
+
+### 1. Update Your Repository
+Start by pulling the latest changes from the public repository:
+```bash
+git pull public main
+```
+
+### 2. Create and Switch to Shell Branch
+Create a dedicated branch for your shell implementation:
+```bash
+git checkout -b shell
+```
+
+### 3. Development Workflow
+- **Always work in the `shell` branch** - never push directly to `main`
+- **Make commits regularly** with descriptive messages
+- **Push your changes to the `shell` branch** when ready
+
+### 4. Submission Requirements
+- **Submissions will only be accepted from the `shell` branch**
+- **No submissions from merge branches or main branch**
+- **Direct pushes to main can cause merge conflicts** in future updates
+
+### 5. Example Commands
+```bash
+# After making changes
+git add .
+git commit -m "Implement robust echo command with argument handling"
+git push origin shell
+
+# To continue working later
+git checkout shell
+git pull origin shell
+```
+
 ## Task 1: Implement Robust echo Command
 
 **Objective:** Implement a robust echo command that handles various argument types and edge cases gracefully.
