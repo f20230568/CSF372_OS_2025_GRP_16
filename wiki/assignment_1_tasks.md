@@ -116,9 +116,11 @@ If you encounter build issues or want to ensure a fresh build:
 **Note:** Always run `make` in both directories after making changes to ensure your modifications are compiled and available for testing.
 
 ### Testing
+For comprehensive testing information, see the [Testing Guide](./testing.md).
+
 1. **Navigate to the build directory:**
    ```bash
-   cd build
+   cd pintos/src/userprog/build
    ```
 
 2. **Run all tests:**
@@ -135,6 +137,8 @@ If you encounter build issues or want to ensure a fresh build:
    make tests/shell/echo-dashes.result
    make tests/shell/touch-create.result
    ```
+
+**Note:** The testing guide contains additional information about debugging test failures, verbose output, simulator selection, and best practices for test-driven development.
 
 ### Shell Robustness
 - All commands should handle malformed input gracefully

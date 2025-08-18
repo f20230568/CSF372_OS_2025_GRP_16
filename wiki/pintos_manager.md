@@ -5,6 +5,18 @@ This Python script helps automate common tasks for working with Pintos in a Dock
 1. **Building the Docker image** for Pintos development
 2. **Starting an interactive Docker session** with your Pintos source code mounted
 
+## Why This Setup?
+
+Curious why we're using Docker instead of installing tools directly on your computer? 
+
+**Read [Why Docker?](./docker_why.md)** to understand:
+- What Docker is and how it works
+- Why Pintos needs special tools (cross-compiler toolchain, QEMU/Bochs)
+- How file mounting creates a seamless development workflow
+- Why this approach is better than manual installation
+
+The short answer: Docker gives everyone the **exact same development environment** regardless of your operating system, while keeping your computer clean and avoiding complex toolchain setup.
+
 ## Prerequisites
 
 Before using this script, ensure you have the following installed and configured:
@@ -129,3 +141,4 @@ docker run -it --rm --name pintos-interactive --mount type=bind,source="/full/pa
 - Source code changes are persisted in your local `./pintos/` directory
 - Use Ctrl+C to exit the interactive session
 - The container is automatically removed when the session ends (`--rm` flag)
+

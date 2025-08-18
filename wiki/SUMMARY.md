@@ -10,3 +10,4 @@
   * [Tasks](./assignment_1_tasks.md)
 * Appendix
   * [Why Docker](./docker_why.md)
+  * [Testing](./testing.md)
