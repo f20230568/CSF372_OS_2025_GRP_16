@@ -11,3 +11,6 @@
 * Appendix
   * [Why Docker](./docker_why.md)
   * [Testing](./testing.md)
+  * [Debugging](./debugging.md)
+  * Code Guide
+    * [Loading](./loading.md)
