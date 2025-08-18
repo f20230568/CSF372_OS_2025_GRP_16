@@ -1,6 +1,6 @@
 # Assignment 1 Tasks
 
-This document contains the three main tasks for enhancing the Pintos shell functionality. Each task builds upon the previous one and introduces new concepts in shell programming.
+This document contains the main tasks for enhancing the Pintos shell functionality. Each task focuses on implementing robust shell commands with proper argument handling.
 
 ## Prerequisites
 
@@ -9,88 +9,75 @@ Before starting these tasks, ensure you have:
 - Successfully completed the [environment setup](./assignment_1_environment_setup.md)
 - Access to the Pintos development environment
 
-## Task 1: Fix echo Command
+## Task 1: Implement Robust echo Command
 
-**Objective:** Modify the echo command to display only the arguments, not the command name.
+**Objective:** Implement a robust echo command that handles various argument types and edge cases gracefully.
 
-### Current Behavior
-When you run the command `echo hi`, the shell prints `echo hi` (includes the command name in the output).
+### Requirements
+The echo command should:
+- Handle no arguments gracefully (exit with status 0)
+- Process multiple arguments correctly
+- Handle arguments with special characters (quotes, backslashes, tabs)
+- Process arguments with leading/trailing spaces
+- Handle newline and carriage return characters in arguments
+- Process dash-prefixed arguments (--help, -n, --version)
 
-### Required Fix
-Modify the echo command implementation to only print the arguments, not the command name itself. After your fix, running `echo hi` should only print `hi` to the console.
+### Testing Scenarios
+Your implementation should pass these test cases:
+- **echo-none**: No arguments - should exit successfully
+- **echo-multi**: Multiple arguments, mixed content, many arguments
+- **echo-mixed**: Arguments with leading/trailing whitespace
+- **echo-newlines**: Arguments containing newline and carriage return characters
+- **echo-dashes**: Arguments starting with dashes
 
-### Testing
-Test your implementation with these scenarios:
-- Single argument: `echo hello`
-- Multiple arguments: `echo hello world`
-- No arguments: `echo`
-- Special characters: `echo "Hello World"`
+### Expected Behavior
+Refer to the .ck files in the `tests/shell` folder.
 
-### Expected Output
-```
-$ echo hello
-hello
-$ echo hello world
-hello world
-$ echo
-(no output)
-```
+## Task 2: Implement touch Command
 
-## Task 2: Create touch Command
+**Objective:** Implement a `touch` command that creates empty files.
 
-**Objective:** Implement a new `touch` command that creates empty files or updates file timestamps.
-
-### Task Requirements
-- Implement a new `touch` command that creates empty files
-- The command should accept a filename as an argument: `touch filename.txt`
-- If the file already exists, the command should update the file's timestamp
-- If the file doesn't exist, create a new empty file
+### Requirements
+- Create a new `touch` command that accepts a filename as an argument
+- The command should create an empty file if it doesn't exist
+- If the file already exists, the command should succeed (no error)
+- The command should exit with status 0 on success
 
 ### Testing
-Test your implementation with these scenarios:
-- Creating new files: `touch newfile.txt`
-- Updating existing files: `touch existingfile.txt`
-- Multiple files: `touch file1.txt file2.txt`
-- Invalid paths: `touch /invalid/path/file.txt`
+Your implementation should pass the **touch-create** test:
+- Running `touch newfile.txt` should create an empty file
+- The shell should report success and exit with status 0
+- The created file should exist and be empty (0 bytes)
 
 ### Expected Behavior
 ```
 $ touch newfile.txt
+newfile.txt: created
+touch: exit(0)
 $ ls
 newfile.txt
-$ touch existingfile.txt
-(updates timestamp)
-$ touch file1.txt file2.txt
-(creates both files)
+$ cat newfile.txt
+(empty file)
 ```
 
-## Task 3: Add Output Redirection
+## Implementation Notes
 
-**Objective:** Implement output redirection for the shell using the `>` operator.
+### Shell Robustness
+- All commands should handle malformed input gracefully
+- Prevent buffer overflows and memory corruption
+- Return appropriate exit codes
+- Handle extreme input patterns safely
 
-### Feature Description
-Implement output redirection for the shell using the `>` operator.
-
-### Expected Behavior
-- Running `echo hi > filename.txt` should redirect the output "hi" to the file `filename.txt` instead of displaying it on the console
-- If the file already exists, it should be overwritten
-- If the file doesn't exist, it should be created
-
-### Testing Strategy
-Test your implementation with these scenarios:
-- Basic redirection: `echo hello > output.txt`
-- Overwriting existing files: `echo world > output.txt`
-- Multiple commands: `ls > filelist.txt`
-
-### Expected Behavior
+### Testing
+Run the shell tests to verify your implementation:
+```bash
+cd pintos/src/userprog
+make check
 ```
-$ echo hello > output.txt
-$ cat output.txt
-hello
-$ echo world > output.txt
-$ cat output.txt
-world
-$ ls > filelist.txt
-$ cat filelist.txt
-(output of ls command)
+
+Or run specific tests:
+```bash
+make tests/shell/echo-none.result
+make tests/shell/echo-multi.result
+make tests/shell/touch-create.result
 ```

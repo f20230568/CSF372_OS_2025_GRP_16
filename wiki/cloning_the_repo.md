@@ -2,6 +2,22 @@
 
 To work with the project assignments while maintaining your own private repository, you'll need to create a private repository and mirror the public course repository to it.
 
+## Prerequisites
+
+Before you begin, ensure you have Git installed on your system:
+
+- **Windows**: Download and install [Git for Windows](https://git-scm.com/download/win)
+- **macOS**: Install via [Homebrew](https://brew.sh/) with `brew install git` or download from [git-scm.com](https://git-scm.com/download/mac)
+- **Linux**: Install via your package manager:
+  - Ubuntu/Debian: `sudo apt-get install git`
+  - CentOS/RHEL: `sudo yum install git`
+  - Fedora: `sudo dnf install git`
+
+Verify Git is installed by running:
+```bash
+git --version
+```
+
 ## Step 1: Create Your Private Repository
 
 1. Go to [GitHub](https://github.com) and create a new repository under your account.

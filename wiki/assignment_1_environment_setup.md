@@ -93,6 +93,11 @@ pintos -p ../../examples/echo -a echo -- -q
 pintos -p ../../examples/shell -a shell -- -q
 ```
 
+**Copy the touch program:**
+```bash
+pintos -p ../../examples/touch -a touch -- -q
+```
+
 These commands copy the programs from the examples directory to the filesystem with specific names.
 
 ### Step 7: Verify the setup
@@ -103,7 +108,7 @@ Check that all programs were copied correctly by listing the filesystem contents
 pintos -- -q ls
 ```
 
-You should see `cat`, `echo`, and `shell` listed in the output.
+You should see `cat`, `echo`, `shell`and `touch` listed in the output.
 
 ### Step 8: Test the shell
 
