@@ -158,7 +158,7 @@ After completing the setup, verify that:
 
 - [ ] All build commands completed successfully
 - [ ] Filesystem was created and formatted
-- [ ] Programs (cat, echo, shell) are copied to filesystem
+- [ ] Programs (cat, echo, shell and touch) are copied to filesystem
 - [ ] `ls` command shows all programs
 - [ ] Shell starts and responds to commands
 

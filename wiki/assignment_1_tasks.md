@@ -31,7 +31,7 @@ Your implementation should pass these test cases:
 - **echo-dashes**: Arguments starting with dashes
 
 ### Expected Behavior
-Refer to the .ck files in the `tests/shell` folder.
+Refer to the `.ck` files in the `tests/shell` folder.
 
 ## Task 2: Implement touch Command
 
@@ -62,22 +62,82 @@ $ cat newfile.txt
 
 ## Implementation Notes
 
+### Source Code Location
+The `echo` and `touch` commands are located in the `pintos/src/examples/` folder:
+- `echo.c` - Source code for the echo command
+- `touch.c` - Source code for the touch command
+
+### Building the Commands
+1. **Compile the example commands first:**
+   ```bash
+   cd pintos/src/examples
+   make
+   ```
+   This will compile `echo` and `touch` executables that will be used by the userprog tests.
+
+2. **Build the userprog kernel:**
+   ```bash
+   cd ../userprog
+   make
+   ```
+
+### Rebuilding After Changes
+Since this is a compiled language, **you must rebuild after making any changes** to the source code:
+
+1. **After modifying echo.c or touch.c:**
+   ```bash
+   cd pintos/src/examples
+   make
+   ```
+
+2. **After modifying shell.c or other userprog files:**
+   ```bash
+   cd pintos/src/userprog
+   make
+   ```
+
+### Clean Builds
+If you encounter build issues or want to ensure a fresh build:
+
+1. **Clean examples:**
+   ```bash
+   cd pintos/src/examples
+   make clean
+   make
+   ```
+
+2. **Clean userprog:**
+   ```bash
+   cd pintos/src/userprog
+   make clean
+   make
+   ```
+
+**Note:** Always run `make` in both directories after making changes to ensure your modifications are compiled and available for testing.
+
+### Testing
+1. **Navigate to the build directory:**
+   ```bash
+   cd build
+   ```
+
+2. **Run all tests:**
+   ```bash
+   make check
+   ```
+
+3. **Run specific shell tests:**
+   ```bash
+   make tests/shell/echo-none.result
+   make tests/shell/echo-multi.result
+   make tests/shell/echo-mixed.result
+   make tests/shell/echo-newlines.result
+   make tests/shell/echo-dashes.result
+   make tests/shell/touch-create.result
+   ```
+
 ### Shell Robustness
 - All commands should handle malformed input gracefully
 - Prevent buffer overflows and memory corruption
 - Return appropriate exit codes
 - Handle extreme input patterns safely
-
-### Testing
-Run the shell tests to verify your implementation:
-```bash
-cd pintos/src/userprog
-make check
-```
-
-Or run specific tests:
-```bash
-make tests/shell/echo-none.result
-make tests/shell/echo-multi.result
-make tests/shell/touch-create.result
-```
