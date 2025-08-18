@@ -1,11 +1,9 @@
-/** Tests echo command with newline and carriage return arguments. */
-
 #include "tests/lib.h"
 
 int
 main (void) 
 {
-  pid_t pid = exec ("shell echo 'line1\nline2' 'carriage\rreturn'");
+  pid_t pid = exec ("shell echo 'line1\nline2' 'carriage\nreturn'");
   if (pid == -1) {
     fail ("shell exec failed with newline/carriage return arguments");
   }

@@ -1,5 +1,3 @@
-/** Tests echo command with dash-prefixed arguments. */
-
 #include "tests/lib.h"
 
 int
