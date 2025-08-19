@@ -1,10 +1,22 @@
-# GitHub Command-Line Mastery
+# Git Command-Line Mastery
 
-Welcome to the world of Git! Forget GUIs for a moment and embrace the power of the command line. This guide will walk you through the essential commands to make you a Git wizard.
+Welcome to the world of Git! Forget GUIs for a moment and embrace the power of the command line. This guide will walk you through the essential commands to make you a Git wizard. For a more visual learning experience, check out the [Learn Git Branching](https://learngitbranching.js.org/) interactive tutorial.
 
 ---
 
-## 1. The Genesis: `git clone`
+## 1. Glossary of Terms
+
+Here are a few key terms to help you understand the Git ecosystem.
+
+- **Repository (Repo):** A project's main folder. It contains all the project files and the entire history of changes. You'll have a *local* repository on your computer and a *remote* repository on a server like GitHub.
+
+- **Remote:** The version of your repository that is hosted on a server, usually GitHub. It's the central place where you and your team can share and sync code. The default name for this remote is `origin`.
+
+- **Branch:** A parallel version of your code. It allows you to develop features or fix bugs in an isolated environment without affecting the main codebase (which is itself a branch, typically named `main`).
+
+---
+
+## 2. The Genesis: `git clone`
 
 Every great journey begins with a single step. In Git, it starts with `clone`. This command copies an existing repository from GitHub to your local machine.
 
@@ -19,7 +31,7 @@ You now have a complete local copy of the project, history and all.
 
 ---
 
-## 2. The Workspace: `status`, `add`, and `commit`
+## 3. The Workspace: `status`, `add`, and `commit`
 
 This is your daily bread and butter. You've made some changes, and now you need to save them.
 
@@ -61,7 +73,7 @@ git commit -m "feat: Implement the new login feature"
 
 ---
 
-## 3. Collaboration: `push` and `pull`
+## 4. Collaboration: `push` and `pull`
 
 You've saved your work locally. Now it's time to share it with your team or sync up with their changes.
 
@@ -89,7 +101,7 @@ git pull origin main
 
 ---
 
-## 4. Parallel Universes: `branch` and `checkout`
+## 5. Parallel Universes: `branch` and `checkout`
 
 Branches let you work on new features or bug fixes in an isolated environment without affecting the main codebase.
 
@@ -123,7 +135,7 @@ git checkout -b another-new-feature
 
 ---
 
-## 5. The Convergence: `merge`
+## 6. The Convergence: `merge`
 
 Once your feature is complete and tested in its branch, you can merge it back into the main branch.
 
@@ -143,7 +155,7 @@ git merge new-feature
 
 ---
 
-## 6. The Time Machine: `log`
+## 7. The Time Machine: `log`
 
 Want to see the history of your project? `git log` is your DeLorean.
 
@@ -159,11 +171,14 @@ git log
 
 # Show a more condensed version of the log
 git log --oneline --graph --decorate
+
+# Show the changes made over the previous commits
+git log -p
 ```
 
 ---
 
-## 7. A Typical Team Workflow
+## 8. A Typical Team Workflow
 
 So how does this all fit together in a team? Here's a common sequence of events for a developer starting a new task.
 
