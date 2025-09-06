@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 {
   int i;
   if(argc==1){
-    return EXIT_SUCCESS;
+    return 0;
   }
 
   for (i = 1; i < argc; i++) {
@@ -15,11 +15,13 @@ int main(int argc, char **argv)
       for (int j = 1; j < (int)strlen(argv[i]) - 1; j++) {
         printf("%c", argv[i][j]);
       }
-      if (i != argc - 1) printf("\n");
+      if (i != argc - 1) printf(" ");
       continue;
     }
     printf("%s", argv[i]);
+    printf(" ");
   }
+  printf("\n");
 
-  return EXIT_SUCCESS;
+  return 0;
 }
