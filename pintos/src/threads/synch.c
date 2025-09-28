@@ -41,6 +41,18 @@
 
    - up or "V": increment the value (and wake up one waiting
      thread, if any). */
+
+/* Add this near the top of synch.c */
+static bool
+waiter_priority_less (const struct list_elem *a,
+                        const struct list_elem *b,
+                        void *aux UNUSED)
+{
+    struct thread *thread_a = list_entry(a, struct thread, elem);
+    struct thread *thread_b = list_entry(b, struct thread, elem);
+    return thread_a->priority > thread_b->priority;
+}
+
 void
 sema_init (struct semaphore *sema, unsigned value) 
 {
@@ -57,6 +69,10 @@ sema_init (struct semaphore *sema, unsigned value)
    interrupt handler.  This function may be called with
    interrupts disabled, but if it sleeps then the next scheduled
    thread will probably turn interrupts back on. */
+/** In threads/synch.c **/
+
+
+
 void
 sema_down (struct semaphore *sema) 
 {
@@ -68,7 +84,9 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+      /* Replace list_push_back with list_insert_ordered */
+      list_insert_ordered (&sema->waiters, &thread_current()->elem,
+                           waiter_priority_less, NULL);
       thread_block ();
     }
   sema->value--;
@@ -189,6 +207,8 @@ lock_init (struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+/** In threads/synch.c **/
+
 void
 lock_acquire (struct lock *lock)
 {
@@ -196,10 +216,25 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
-}
+  struct thread *cur = thread_current ();
+  struct thread *holder = lock->holder;
 
+  /* If lock is held AND the current thread has higher priority... */
+  if (holder != NULL && holder->priority < cur->priority)
+    {
+      /* Donate priority directly to the holder. */
+      holder->priority = cur->priority;
+      
+      /* * CRITICAL STEP: The holder's priority has increased. If it was
+       * on the ready_list, it might need to run now. Yielding forces 
+       * the scheduler to check and run the new highest-priority thread.
+       */
+      thread_yield ();
+    }
+
+  sema_down (&lock->semaphore);
+  lock->holder = cur;
+}
 /** Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
    thread.
@@ -225,16 +260,40 @@ lock_try_acquire (struct lock *lock)
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to release a lock within an interrupt
    handler. */
+/** In threads/synch.c, inside lock_release() **/
+/** In threads/synch.c **/
+
 void
 lock_release (struct lock *lock) 
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
+  
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+
+  /* Remove all threads waiting on this specific lock from our list of donors. */
+  for (e = list_begin (&cur->donations); e != list_end (&cur->donations); )
+    {
+      struct thread *donor = list_entry (e, struct thread, donation_elem);
+      if (donor->waiting_on_lock == lock)
+        {
+          e = list_remove (e);
+        }
+      else
+        {
+          e = list_next (e);
+        }
+    }
+
+  /* Recalculate our priority now that some donors may have been removed. */
+  thread_recalculate_priority (cur);
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+  
+  thread_yield_if_not_highest ();
 }
-
 /** Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds
    a lock would be racy.) */

@@ -19,7 +19,16 @@
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
-
+/* Add this function near the top of thread.c */
+bool
+thread_priority_less (const struct list_elem *a,
+                      const struct list_elem *b,
+                      void *aux UNUSED)
+{
+  struct thread *thread_a = list_entry (a, struct thread, elem);
+  struct thread *thread_b = list_entry (b, struct thread, elem);
+  return thread_a->priority > thread_b->priority;
+}
 /** List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -237,8 +246,15 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  // list_push_back (&ready_list, &t->elem); // Replace this line
+  list_insert_ordered (&ready_list, &t->elem, thread_priority_less, NULL);
   t->status = THREAD_READY;
+
+  /* Check for preemption */
+  if (thread_current() != idle_thread && t->priority > thread_current()->priority) {
+      thread_yield();
+  }
+
   intr_set_level (old_level);
 }
 
@@ -308,7 +324,8 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    // list_push_back (&ready_list, &cur->elem); // Replace this line
+    list_insert_ordered (&ready_list, &cur->elem, thread_priority_less, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -335,7 +352,25 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  enum intr_level old_level = intr_disable ();
+
+  struct thread *cur = thread_current ();
+  cur->base_priority = new_priority;
+
+  /* Recalculate effective priority if there are donations */
+  if (list_empty(&cur->donations) || new_priority > cur->priority) {
+      cur->priority = new_priority;
+  }
+
+  /* Check if we need to yield to another thread */
+  if (!list_empty(&ready_list)) {
+      struct thread *highest_ready = list_entry(list_front(&ready_list), struct thread, elem);
+      if (cur->priority < highest_ready->priority) {
+          thread_yield();
+      }
+  }
+
+  intr_set_level (old_level);
 }
 
 /** Returns the current thread's priority. */
@@ -463,7 +498,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-  t->next_fd = 2; // after stdin and stdout
+  
+
+  /* Add initialization for new members */
+  t->base_priority = priority;
+  t->waiting_on_lock = NULL;
+  list_init (&t->donations); // after stdin and stdout
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -579,6 +619,65 @@ allocate_tid (void)
 
   return tid;
 }
+void
+thread_recalculate_priority (struct thread *t)
+{
+  /* Start with the thread's original priority. */
+  t->priority = t->base_priority;
+
+  /* If any threads are donating to 't', find the one with the highest priority. */
+  if (!list_empty (&t->donations))
+    {
+      struct thread *highest_donor = list_entry (list_front (&t->donations), 
+                                                 struct thread, donation_elem);
+      if (highest_donor->priority > t->priority)
+        {
+          t->priority = highest_donor->priority;
+        }
+    }
+}
+
+/** In threads/thread.c **/
+
+/* Causes the current thread to yield if it's not the highest priority. */
+void
+thread_yield_if_not_highest (void)
+{
+  /* If the ready list is empty, there's no one to yield to. */
+  if (list_empty (&ready_list))
+    return;
+
+  /* Get the highest-priority thread from the ready list. */
+  struct thread *highest_ready = list_entry (list_front (&ready_list), struct thread, elem);
+
+  /* If the current thread's priority is lower, yield. */
+  if (thread_current ()->priority < highest_ready->priority)
+    {
+      thread_yield ();
+    }
+}
+/** In threads/thread.c **/
+
+/* Recursively donates priority from the current thread to thread 't' and up the lock chain. */
+void
+thread_donate_priority (struct thread *t)
+{
+  /* If the current thread's priority is not higher, there's nothing to donate. */
+  if (thread_current ()->priority <= t->priority)
+    return;
+  
+  /* Boost the target thread's priority. */
+  t->priority = thread_current ()->priority;
+
+  /* Recursively donate up the chain if the target thread is also waiting for a lock. */
+  if (t->waiting_on_lock != NULL && t->waiting_on_lock->holder != NULL)
+    {
+      thread_donate_priority (t->waiting_on_lock->holder);
+    }
+}
+
+/* Recalculates a thread's priority based on its base priority and its highest-priority donor. */
+
 
 /** Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
