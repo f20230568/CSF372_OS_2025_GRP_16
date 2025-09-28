@@ -4,7 +4,6 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/synch.h" /* Added for struct lock declaration */
 
 /** States in a thread's life cycle. */
 enum thread_status
@@ -99,12 +98,8 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /**< List element. */
-
-    /* --- New fields for priority scheduling --- */
-    int base_priority;                  /**< Original priority, without donation. */
-    struct list locks_held;             /**< List of locks held by this thread. */
-    struct lock *waiting_on_lock;       /**< Lock this thread is waiting for. */
-    /* --- End of new fields --- */
+    struct list *fd_list; 
+    int next_fd;                   /**< Next file descriptor. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -153,11 +148,6 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-/* --- New function declarations --- */
-bool thread_priority_less (const struct list_elem *a, const struct list_elem *b, void *aux);
-void thread_yield_if_not_highest (void);
-void thread_donate_priority (struct thread *t);
-void thread_recalculate_priority (struct thread *t);
-/* --- End of new declarations --- */
+void thread_yield_if_needed (void);
 
 #endif /**< threads/thread.h */

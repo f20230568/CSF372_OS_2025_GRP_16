@@ -22,10 +22,7 @@ struct lock
   {
     struct thread *holder;      /**< Thread holding lock (for debugging). */
     struct semaphore semaphore; /**< Binary semaphore controlling access. */
-    
-    /* --- New field for priority scheduling --- */
-    struct list_elem elem;      /**< List element for thread's locks_held list. */
-    /* --- End of new field --- */
+        struct list_elem elem;      /* List element for locks_held list. */
   };
 
 void lock_init (struct lock *);
