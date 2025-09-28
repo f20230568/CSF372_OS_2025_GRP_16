@@ -80,6 +80,7 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+/* MODIFIED struct thread for Priority Donation */
 struct thread
   {
     /* Owned by thread.c. */
@@ -87,8 +88,13 @@ struct thread
     enum thread_status status;          /**< Thread state. */
     char name[16];                      /**< Name (for debugging purposes). */
     uint8_t *stack;                     /**< Saved stack pointer. */
-    int priority;                       /**< Priority. */
+    int priority;                       /**< Effective priority. */
     struct list_elem allelem;           /**< List element for all threads list. */
+
+    /* ADDED FOR PRIORITY DONATION */
+    int base_priority;                  /**< Original priority, before donation. */
+    struct lock *waiting_on_lock;       /**< Lock this thread is waiting for, if any. */
+    struct list locks_held;             /**< List of locks this thread holds. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /**< List element. */
@@ -108,6 +114,8 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+
+bool thread_priority_compare (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 void thread_init (void);
 void thread_start (void);
@@ -139,5 +147,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+void thread_yield_if_needed (void);
 
 #endif /**< threads/thread.h */

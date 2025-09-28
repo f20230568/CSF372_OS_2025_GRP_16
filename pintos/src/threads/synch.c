@@ -68,7 +68,10 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+      /* MODIFIED FOR PRIORITY SCHEDULING */
+      /* Add the waiting thread to the waiters list in priority order. */
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem, 
+                           thread_priority_compare, NULL);
       thread_block ();
     }
   sema->value--;
@@ -189,15 +192,43 @@ lock_init (struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+/* MODIFIED lock_acquire() for Priority Donation */
 void
 lock_acquire (struct lock *lock)
 {
+  struct thread *cur = thread_current ();
+  struct thread *holder = lock->holder;
+
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  /* If the lock is held by another thread, donate priority. */
+  if (lock->holder != NULL)
+    {
+      cur->waiting_on_lock = lock;
+      holder = lock->holder;
+      /* Recursively donate priority up the chain. */
+      while (holder)
+        {
+          if (holder->priority < cur->priority)
+            {
+              holder->priority = cur->priority;
+              holder = holder->waiting_on_lock ? holder->waiting_on_lock->holder : NULL;
+            }
+          else
+            {
+              break; 
+            }
+        }
+    }
+  
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+
+  /* After acquiring the lock */
+  cur->waiting_on_lock = NULL;
+  lock->holder = cur;
+  list_push_back (&cur->locks_held, &lock->elem);
 }
 
 /** Tries to acquires LOCK and returns true if successful or false
@@ -225,14 +256,38 @@ lock_try_acquire (struct lock *lock)
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to release a lock within an interrupt
    handler. */
+/* MORE ROBUST corrected lock_release() in synch.c */
 void
 lock_release (struct lock *lock) 
 {
+  struct thread *cur = thread_current ();
+  
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  lock->holder = NULL;
+  list_remove (&lock->elem);
+  
+  /* Recalculate the thread's priority. */
+  int max_priority = cur->base_priority;
+  if (!list_empty(&cur->locks_held))
+    {
+      struct list_elem *e = list_front(&cur->locks_held);
+      struct lock *highest_lock = list_entry(e, struct lock, elem);
+      if (!list_empty(&highest_lock->semaphore.waiters))
+      {
+        int highest_waiter_priority = list_entry(list_front(&highest_lock->semaphore.waiters), struct thread, elem)->priority;
+        if (highest_waiter_priority > max_priority)
+        {
+          max_priority = highest_waiter_priority;
+        }
+      }
+    }
+  cur->priority = max_priority;
+  
+  lock->holder = NULL;  
   sema_up (&lock->semaphore);
+  
+  thread_yield_if_needed ();
 }
 
 /** Returns true if the current thread holds LOCK, false
