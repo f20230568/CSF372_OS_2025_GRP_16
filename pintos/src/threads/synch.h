@@ -18,14 +18,14 @@ void sema_up (struct semaphore *);
 void sema_self_test (void);
 
 /** Lock. */
-/* In struct lock */
-struct lock
+struct lock 
   {
     struct thread *holder;      /**< Thread holding lock (for debugging). */
     struct semaphore semaphore; /**< Binary semaphore controlling access. */
-
-    /* New field for priority donation */
-    int max_priority;           /**< Max priority among waiting threads. */
+    
+    /* --- New field for priority scheduling --- */
+    struct list_elem elem;      /**< List element for thread's locks_held list. */
+    /* --- End of new field --- */
   };
 
 void lock_init (struct lock *);

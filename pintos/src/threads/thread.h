@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h" /* Added for struct lock declaration */
 
 /** States in a thread's life cycle. */
 enum thread_status
@@ -80,7 +81,6 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
-/* In struct thread */
 struct thread
   {
     /* Owned by thread.c. */
@@ -88,19 +88,17 @@ struct thread
     enum thread_status status;          /**< Thread state. */
     char name[16];                      /**< Name (for debugging purposes). */
     uint8_t *stack;                     /**< Saved stack pointer. */
-    int priority;                       /**< Current (effective) priority. */
+    int priority;                       /**< Effective priority. */
     struct list_elem allelem;           /**< List element for all threads list. */
-
-    /* New fields for priority scheduling and donation */
-    int base_priority;                  /**< Base priority, without donations. */
-    int64_t wakeup_tick;                /**< Tick to wake up from sleep. */
-    struct lock *waiting_on_lock;       /**< The lock this thread is waiting for. */
-    struct list donations;              /**< List of threads donating to us. */
-    struct list_elem donation_elem;     /**< List element for the donations list. */
-
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /**< List element. */
+
+    /* --- New fields for priority scheduling --- */
+    int base_priority;                  /**< Original priority, without donation. */
+    struct list locks_held;             /**< List of locks held by this thread. */
+    struct lock *waiting_on_lock;       /**< Lock this thread is waiting for. */
+    /* --- End of new fields --- */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -115,7 +113,6 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
-bool thread_priority_less (const struct list_elem *a, const struct list_elem *b, void *aux);
 
 void thread_init (void);
 void thread_start (void);
@@ -147,21 +144,12 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-void thread_recalculate_priority(struct thread *t);
-/** In threads/thread.h **/
 
-void thread_exit (void) NO_RETURN;
-void thread_yield (void);
-void thread_yield_if_not_highest (void); /* <<< ADD THIS LINE */
-
-/** Performs some operation on thread t, given auxiliary data AUX. */
-typedef void thread_action_func (struct thread *t, void *aux);
-
-/** In threads/thread.h **/
-
+/* --- New function declarations --- */
+bool thread_priority_less (const struct list_elem *a, const struct list_elem *b, void *aux);
+void thread_yield_if_not_highest (void);
 void thread_donate_priority (struct thread *t);
-
-
-
+void thread_recalculate_priority (struct thread *t);
+/* --- End of new declarations --- */
 
 #endif /**< threads/thread.h */
