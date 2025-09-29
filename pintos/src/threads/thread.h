@@ -150,6 +150,6 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 //CHANGE DONE HERE
-void thread_yield_if_needed (void);
+void thread_yield_if_required (void);
 
-#endif /**< threads/thread.h */
+#endif 

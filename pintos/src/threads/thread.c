@@ -630,7 +630,7 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 //CHANGE DONE HERE
 void
-thread_yield_if_needed (void)
+thread_yield_if_required (void)
 {
   
   if (!list_empty(&ready_list)){

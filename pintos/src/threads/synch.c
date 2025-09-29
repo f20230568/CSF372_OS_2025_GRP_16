@@ -288,7 +288,7 @@ lock_release (struct lock *lock)
   lock->holder = NULL;  
   sema_up (&lock->semaphore);
   
-  thread_yield_if_needed ();
+  thread_yield_if_required ();
 }
 
 /** Returns true if the current thread holds LOCK, false
