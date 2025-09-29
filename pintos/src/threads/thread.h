@@ -92,9 +92,9 @@ struct thread
     struct list_elem allelem;           /**< List element for all threads list. */
 
     /* ADDED FOR PRIORITY DONATION */
-    int base_priority;                  /**< Original priority, before donation. */
-    struct lock *waiting_on_lock;       /**< Lock this thread is waiting for, if any. */
-    struct list locks_held;             /**< List of locks this thread holds. */
+    int base_priority;                  
+    struct lock *lock_causing_wait;       
+    struct list current_locks;             
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /**< List element. */
@@ -115,6 +115,7 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
+//CHANGE DONE HERE
 bool thread_priority_compare (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 void thread_init (void);
@@ -148,6 +149,7 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+//CHANGE DONE HERE
 void thread_yield_if_needed (void);
 
 #endif /**< threads/thread.h */

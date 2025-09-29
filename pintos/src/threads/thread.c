@@ -71,17 +71,11 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
-/* ADDED FOR PRIORITY SCHEDULING */
-/** Comparison function for threads based on priority.
-    Returns true if thread A has a higher priority than thread B. */
+//CHANGE DONE HERE (NEW FUNCTION)
 bool
-thread_priority_compare (const struct list_elem *a,
-                         const struct list_elem *b,
-                         void *aux UNUSED)
+thread_priority_compare (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
-  const struct thread *thread_a = list_entry (a, struct thread, elem);
-  const struct thread *thread_b = list_entry (b, struct thread, elem);
-  return thread_a->priority > thread_b->priority;
+  return list_entry(a,struct thread, elem)->priority > list_entry(b,struct thread, elem)->priority;
 }
 
 /** Initializes the threading system by transforming the code
@@ -214,10 +208,8 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
-  /* ADDED FOR PRIORITY SCHEDULING */
-  /* If the new thread has higher priority, yield. */
-  if (thread_current ()->priority < priority)
-    {
+  //CHANGE D0NE HERE
+  if (thread_current ()->priority < priority){
       thread_yield ();
     }
 
@@ -258,8 +250,7 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
 
-  /* MODIFIED FOR PRIORITY SCHEDULING */
-  /* Insert into ready_list in priority order. */
+  //CHANGE DONE HERE
   list_insert_ordered (&ready_list, &t->elem, thread_priority_compare, NULL);
 
   t->status = THREAD_READY;
@@ -325,18 +316,17 @@ thread_exit (void)
 void
 thread_yield (void) 
 {
-  struct thread *cur = thread_current ();
+  struct thread *current = thread_current ();
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) {
-    /* MODIFIED FOR PRIORITY SCHEDULING */
-    /* Insert into ready_list in priority order. */
-    list_insert_ordered (&ready_list, &cur->elem, thread_priority_compare, NULL);
+  if (current != idle_thread) {
+    //CHANGE DONE HERE
+    list_insert_ordered (&ready_list, &current->elem, thread_priority_compare, NULL);
   }
-  cur->status = THREAD_READY;
+  current->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
 }
@@ -371,7 +361,7 @@ thread_set_priority (int new_priority)
 
   /* If the new base priority is higher than the current effective priority,
      or if the thread is not receiving a donation, update its effective priority. */
-  if (new_priority > cur->priority || list_empty(&cur->locks_held))
+  if (new_priority > cur->priority || list_empty(&cur->current_locks))
     {
       cur->priority = new_priority;
     }
@@ -514,10 +504,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   t->next_fd = 2; // after stdin and stdout
 
-  /* ADDED FOR PRIORITY DONATION */
+  //CHANGE DONE HERE
   t->base_priority = priority;
-  t->waiting_on_lock = NULL;
-  list_init (&t->locks_held);
+  t->lock_causing_wait = NULL;
+  list_init (&t->current_locks);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -638,21 +628,17 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-/**
- * Checks if the current thread's priority is lower than the highest
- * priority thread in the ready list. If so, yields the CPU.
- */
+//CHANGE DONE HERE
 void
 thread_yield_if_needed (void)
 {
-  /* This function can be called with interrupts enabled or disabled. */
-  enum intr_level old_level = intr_disable ();
   
-  if (!list_empty(&ready_list) &&
-      thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority)
+  if (!list_empty(&ready_list)){
+    struct thread *next_thread = list_entry(list_front(&ready_list), struct thread, elem);
+    if(thread_current()->priority < next_thread->priority)
     {
       thread_yield();
     }
-
-  intr_set_level(old_level);
+  }
+  intr_set_level(intr_disable());
 }

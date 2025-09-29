@@ -206,7 +206,7 @@ lock_acquire (struct lock *lock)
   /* If the lock is held by another thread, donate priority. */
   if (lock->holder != NULL)
     {
-      cur->waiting_on_lock = lock;
+      cur->lock_causing_wait = lock;
       holder = lock->holder;
       /* Recursively donate priority up the chain. */
       while (holder)
@@ -214,7 +214,7 @@ lock_acquire (struct lock *lock)
           if (holder->priority < cur->priority)
             {
               holder->priority = cur->priority;
-              holder = holder->waiting_on_lock ? holder->waiting_on_lock->holder : NULL;
+              holder = holder->lock_causing_wait ? holder->lock_causing_wait->holder : NULL;
             }
           else
             {
@@ -226,9 +226,9 @@ lock_acquire (struct lock *lock)
   sema_down (&lock->semaphore);
 
   /* After acquiring the lock */
-  cur->waiting_on_lock = NULL;
+  cur->lock_causing_wait = NULL;
   lock->holder = cur;
-  list_push_back (&cur->locks_held, &lock->elem);
+  list_push_back (&cur->current_locks, &lock->elem);
 }
 
 /** Tries to acquires LOCK and returns true if successful or false
@@ -269,9 +269,9 @@ lock_release (struct lock *lock)
   
   /* Recalculate the thread's priority. */
   int max_priority = cur->base_priority;
-  if (!list_empty(&cur->locks_held))
+  if (!list_empty(&cur->current_locks))
     {
-      struct list_elem *e = list_front(&cur->locks_held);
+      struct list_elem *e = list_front(&cur->current_locks);
       struct lock *highest_lock = list_entry(e, struct lock, elem);
       if (!list_empty(&highest_lock->semaphore.waiters))
       {
