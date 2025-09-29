@@ -263,6 +263,7 @@ lock_release (struct lock *lock)
   struct thread *cur = thread_current ();
   
   ASSERT (lock != NULL);
+  
   ASSERT (lock_held_by_current_thread (lock));
 
   list_remove (&lock->elem);
