@@ -91,10 +91,10 @@ struct thread
     int priority;                       /**< Effective priority. */
     struct list_elem allelem;           /**< List element for all threads list. */
 
-    /* ADDED FOR PRIORITY DONATION */
-    int base_priority;                  
+    //CHANGE DONE HERE
+    int initial_priority;                      
+    struct list current_locks;        
     struct lock *lock_causing_wait;       
-    struct list current_locks;             
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /**< List element. */

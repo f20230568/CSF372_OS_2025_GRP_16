@@ -357,7 +357,7 @@ thread_set_priority (int new_priority)
   struct thread *cur = thread_current ();
   
   /* The user is changing the base priority. */
-  cur->base_priority = new_priority;
+  cur->initial_priority = new_priority;
 
   /* If the new base priority is higher than the current effective priority,
      or if the thread is not receiving a donation, update its effective priority. */
@@ -505,7 +505,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->next_fd = 2; // after stdin and stdout
 
   //CHANGE DONE HERE
-  t->base_priority = priority;
+  t->initial_priority = priority;
   t->lock_causing_wait = NULL;
   list_init (&t->current_locks);
 
@@ -641,4 +641,4 @@ thread_yield_if_required (void)
     }
   }
   intr_set_level(intr_disable());
-}
+}    

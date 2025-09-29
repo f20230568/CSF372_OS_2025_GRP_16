@@ -269,7 +269,7 @@ lock_release (struct lock *lock)
   list_remove (&lock->elem);
   
   /* Recalculate the thread's priority. */
-  int max_priority = cur->base_priority;
+  int max_priority = cur->initial_priority;
   if (!list_empty(&cur->current_locks))
     {
       struct list_elem *e = list_front(&cur->current_locks);
