@@ -73,7 +73,7 @@ static tid_t allocate_tid (void);
 
 //CHANGE DONE HERE (NEW FUNCTION)
 bool
-thread_priority_compare (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+comparator (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
   return list_entry(a,struct thread, elem)->priority > list_entry(b,struct thread, elem)->priority;
 }
@@ -251,7 +251,7 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
 
   //CHANGE DONE HERE
-  list_insert_ordered (&ready_list, &t->elem, thread_priority_compare, NULL);
+  list_insert_ordered (&ready_list, &t->elem, comparator, NULL);
 
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -324,7 +324,7 @@ thread_yield (void)
   old_level = intr_disable ();
   if (current != idle_thread) {
     //CHANGE DONE HERE
-    list_insert_ordered (&ready_list, &current->elem, thread_priority_compare, NULL);
+    list_insert_ordered (&ready_list, &current->elem, comparator, NULL);
   }
   current->status = THREAD_READY;
   schedule ();

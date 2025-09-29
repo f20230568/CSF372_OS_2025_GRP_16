@@ -71,7 +71,7 @@ sema_down (struct semaphore *sema)
       /* MODIFIED FOR PRIORITY SCHEDULING */
       /* Add the waiting thread to the waiters list in priority order. */
       list_insert_ordered (&sema->waiters, &thread_current ()->elem, 
-                           thread_priority_compare, NULL);
+                           comparator, NULL);
       thread_block ();
     }
   sema->value--;
