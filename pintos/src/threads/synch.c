@@ -57,22 +57,21 @@ sema_init (struct semaphore *sema, unsigned value)
    interrupt handler.  This function may be called with
    interrupts disabled, but if it sleeps then the next scheduled
    thread will probably turn interrupts back on. */
-void sema_down (struct semaphore *sema)
+void
+sema_down (struct semaphore *sema) 
 {
-  ASSERT (!intr_context ());
+  enum intr_level old_level;
+
   ASSERT (sema != NULL);
+  ASSERT (!intr_context ());
 
-  enum intr_level old_level = intr_disable ();
-
-  while (sema->value == 0)
+  old_level = intr_disable ();
+  while (sema->value == 0) 
     {
-      list_insert_ordered (&sema->waiters, &thread_current ()->elem,
-                           comparator, NULL);
+      list_push_back (&sema->waiters, &thread_current ()->elem);
       thread_block ();
     }
-
   sema->value--;
-
   intr_set_level (old_level);
 }
 
@@ -190,8 +189,6 @@ lock_init (struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
-
-
 void
 lock_acquire (struct lock *lock)
 {
@@ -199,43 +196,9 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  struct thread *acquiring_thread = thread_current ();
-
-  if (lock->holder)
-    {
-      acquiring_thread->lock_causing_wait = lock;
-
-      for (struct thread *owner = lock->holder; owner != NULL; )
-        {
-          if (acquiring_thread->priority > owner->priority)
-            {
-              owner->priority = acquiring_thread->priority;
-              
-              if (owner->lock_causing_wait)
-                {
-                  owner = owner->lock_causing_wait->holder;
-                }
-              else
-                {
-                  break;
-                }
-            }
-          else
-            {
-              break;
-            }
-        }
-    }
-  
   sema_down (&lock->semaphore);
-
-  lock->holder = acquiring_thread;
-  acquiring_thread->lock_causing_wait = NULL;
-  list_push_back (&acquiring_thread->current_locks, &lock->elem);
+  lock->holder = thread_current ();
 }
-
- 
-
 
 /** Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -263,43 +226,14 @@ lock_try_acquire (struct lock *lock)
    make sense to try to release a lock within an interrupt
    handler. */
 void
-lock_release (struct lock *lock)
+lock_release (struct lock *lock) 
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  struct thread *releasing_thread = thread_current ();
-
-  list_remove (&lock->elem);
-
-  int new_priority = releasing_thread->initial_priority;
-
-  if (!list_empty (&releasing_thread->current_locks))
-    {
-      struct list_elem *e = list_begin (&releasing_thread->current_locks);
-      while (e != list_end (&releasing_thread->current_locks))
-        {
-          struct lock *held_lock = list_entry (e, struct lock, elem);
-          if (!list_empty (&held_lock->semaphore.waiters))
-            {
-              int waiter_priority = list_entry (list_front (&held_lock->semaphore.waiters),
-                                                struct thread, elem)->priority;
-              if (waiter_priority > new_priority)
-                {
-                  new_priority = waiter_priority;
-                }
-            }
-          e = list_next (e);
-        }
-    }
-  releasing_thread->priority = new_priority;
-
   lock->holder = NULL;
   sema_up (&lock->semaphore);
-
-  thread_yield_if_required ();
 }
-
 
 /** Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds
