@@ -116,6 +116,7 @@ page_fault (struct intr_frame *f)
               
               if (new_page != NULL)
                 {
+                  
                   success = page_in(fault_addr);
                 }
             }
