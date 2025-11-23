@@ -9,8 +9,7 @@
     "C0 SLEEP 500",
     "C1 SLEEP 500",
     "C0 WRITE 0 3 Long 2500",
-    "C1 WRITE 0 4 Edit 2500",
-    "Server: Client 1 PRINT_DOC READ(0,3) DROPPED" 
+    "C1 WRITE 0 4 Edit 2500"
   ],
   "expected_output": "First Word Another Long Edit",
   "expected_output_clients": {

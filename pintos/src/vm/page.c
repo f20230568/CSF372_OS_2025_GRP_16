@@ -29,6 +29,7 @@ page_exit (void)
     hash_destroy (h, destroy_page);
 }
 
+//CHANGES DONE HERE
 static struct page *
 page_for_addr (const void *address)
 {
@@ -52,6 +53,7 @@ page_for_addr (const void *address)
     return NULL;
 }
 
+//CHANGE FOR ERROR DONE HERE
 static bool
 do_page_in (struct page *p)
 {
@@ -175,7 +177,7 @@ page_accessed_recently (struct page *p)
     pagedir_set_accessed (p->thread->pagedir, p->addr, false);
   return was_accessed;
 }
-
+ //CHANGES DONE HERE
 struct page *
 page_allocate (void *vaddr, bool read_only)
 {
@@ -207,6 +209,7 @@ page_allocate (void *vaddr, bool read_only)
     }
 }
 
+//CHANGES DONE HERE
 void
 page_deallocate (void *vaddr)
 {

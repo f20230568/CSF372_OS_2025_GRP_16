@@ -71,6 +71,7 @@ input:
 # Clean everything including input.txt
 distclean: clean
 	rm -f input.txt
+	rm -rf output_client*.txt
 	@echo "Removed input.txt"
 
 # Help target

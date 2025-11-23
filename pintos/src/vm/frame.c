@@ -143,6 +143,7 @@ frame_lock (struct page *p)
 /* Releases frame F for use by another page.
    F must be locked for use by the current process.
    Any data in F is lost. */
+//CHANGES DONE HERE
 void
 frame_free (struct frame *f)
 {
