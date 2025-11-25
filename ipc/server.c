@@ -1,4 +1,4 @@
-/* server.c - Final Version (Strict Locking for Print_Doc) */
+/* server.c - BONUS: Crash Recovery & Undo */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,13 +21,50 @@
 #define MQ_MAXMSG 10 
 #define MAX_CLIENTS 10
 
+/* Protocol Constants */
 #define REQ_READ 1
 #define REQ_WRITE 2
 #define REQ_SHUTDOWN 3
+#define REQ_UNDO 4  /* BONUS: New Command */
+
 #define RESP_SUCCESS 0
 #define RESP_DROPPED 1
 #define RESP_ERROR 2
 
+/* --- Undo History Stack (Bonus) --- */
+typedef struct HistoryNode {
+    int line;
+    int pos;
+    char prev_word[MAX_STRING_LEN + 1];
+    struct HistoryNode *next;
+} HistoryNode;
+
+HistoryNode *history_head = NULL;
+
+/* --- Data Structures --- */
+typedef struct {
+    int req_type; int client_id; int line; int pos;
+    char word[MAX_STRING_LEN + 1]; int duration_ms; int is_print;
+} request_t;
+
+typedef struct {
+    int status; char word[MAX_STRING_LEN + 1];
+} response_t;
+
+typedef struct {
+    int line; int pos; int client_id; int duration_ms;
+} lock_release_arg_t;
+
+/* --- Globals --- */
+static char doc[GRID_SIZE][GRID_SIZE][MAX_STRING_LEN + 1];
+static int lock_owner[GRID_SIZE][GRID_SIZE]; 
+static pthread_mutex_t doc_mutex = PTHREAD_MUTEX_INITIALIZER;
+static mqd_t server_mqd = (mqd_t)-1;
+static volatile sig_atomic_t keep_running = 1;
+static int active_clients[MAX_CLIENTS] = {0};
+static int seen_any_client = 0;
+
+/* --- Helper Functions --- */
 static void ts_printf(const char *fmt, ...) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -43,27 +80,6 @@ static void ts_printf(const char *fmt, ...) {
     fflush(stdout);
 }
 #define printf(...) ts_printf(__VA_ARGS__)
-
-typedef struct {
-    int req_type; int client_id; int line; int pos;
-    char word[MAX_STRING_LEN + 1]; int duration_ms; int is_print;
-} request_t;
-
-typedef struct {
-    int status; char word[MAX_STRING_LEN + 1];
-} response_t;
-
-typedef struct {
-    int line; int pos; int client_id; int duration_ms;
-} lock_release_arg_t;
-
-static char doc[GRID_SIZE][GRID_SIZE][MAX_STRING_LEN + 1];
-static int lock_owner[GRID_SIZE][GRID_SIZE]; 
-static pthread_mutex_t doc_mutex = PTHREAD_MUTEX_INITIALIZER;
-static mqd_t server_mqd = (mqd_t)-1;
-static volatile sig_atomic_t keep_running = 1;
-static int active_clients[MAX_CLIENTS] = {0};
-static int seen_any_client = 0;
 
 void handle_sig(int sig) { (void)sig; keep_running = 0; }
 
@@ -90,6 +106,44 @@ static void *lock_releaser(void *arg) {
     }
     pthread_mutex_unlock(&doc_mutex);
     return NULL;
+}
+
+/* --- BONUS: PERSISTENCE FUNCTIONS --- */
+void log_change(int line, int pos, const char *word) {
+    FILE *f = fopen("recovery.log", "a");
+    if (f) {
+        fprintf(f, "%d %d %s\n", line, pos, word);
+        fclose(f);
+    }
+}
+
+void recover_state() {
+    FILE *f = fopen("recovery.log", "r");
+    if (!f) {
+        printf("Server: No recovery log found. Starting fresh.\n");
+        return;
+    }
+    printf("Server: Recovering state from log...\n");
+    int line, pos;
+    char word[MAX_STRING_LEN + 1];
+    while (fscanf(f, "%d %d %64s", &line, &pos, word) == 3) {
+        if (line >= 0 && line < GRID_SIZE && pos >= 0 && pos < GRID_SIZE) {
+            strncpy(doc[line][pos], word, MAX_STRING_LEN);
+        }
+    }
+    fclose(f);
+    printf("Server: Recovery complete.\n");
+}
+
+/* --- BONUS: UNDO FUNCTIONS --- */
+void push_history(int line, int pos, const char *old_word) {
+    HistoryNode *node = malloc(sizeof(HistoryNode));
+    if (!node) return;
+    node->line = line;
+    node->pos = pos;
+    strncpy(node->prev_word, old_word, MAX_STRING_LEN);
+    node->next = history_head;
+    history_head = node;
 }
 
 void write_output_file() {
@@ -119,6 +173,9 @@ int main(void) {
     memset(doc, 0, sizeof(doc));
     memset(lock_owner, 0, sizeof(lock_owner));
 
+    /* BONUS: Recover from crash */
+    recover_state();
+
     struct mq_attr attr = {0, MQ_MAXMSG, MAX_MSG_SIZE, 0};
     mq_unlink(MQ_NAME_SERVER);
     server_mqd = mq_open(MQ_NAME_SERVER, O_CREAT | O_RDONLY, 0666, &attr);
@@ -134,20 +191,52 @@ int main(void) {
         request_t req;
         memcpy(&req, buf, sizeof(request_t));
 
+        /* Lifecycle tracking */
         if (req.client_id >= 0 && req.client_id < MAX_CLIENTS) {
             seen_any_client = 1;
             if (req.req_type != REQ_SHUTDOWN) active_clients[req.client_id] = 1;
         }
 
         if (req.req_type == REQ_SHUTDOWN) {
-            if (req.client_id >= 0 && req.client_id < MAX_CLIENTS) {
-                active_clients[req.client_id] = 0;
-            }
+            if (req.client_id >= 0 && req.client_id < MAX_CLIENTS) active_clients[req.client_id] = 0;
             if (seen_any_client) {
                 int any_active = 0;
                 for (int i = 0; i < MAX_CLIENTS; i++) if (active_clients[i]) any_active = 1;
                 if (!any_active) break;
             }
+            continue;
+        }
+
+        /* Handle UNDO (Bonus) */
+        if (req.req_type == REQ_UNDO) {
+            response_t resp;
+            pthread_mutex_lock(&doc_mutex);
+            
+            if (history_head == NULL) {
+                resp.status = RESP_ERROR;
+                printf("Server: Client %d UNDO FAILED (History Empty)\n", req.client_id);
+            } else {
+                /* Pop last action */
+                HistoryNode *node = history_head;
+                history_head = node->next;
+                
+                /* Check if locked */
+                if (lock_owner[node->line][node->pos] != 0) {
+                    resp.status = RESP_DROPPED; // Cannot undo locked word
+                    printf("Server: Client %d UNDO DROPPED (Word Locked)\n", req.client_id);
+                } else {
+                    strncpy(doc[node->line][node->pos], node->prev_word, MAX_STRING_LEN);
+                    log_change(node->line, node->pos, node->prev_word);
+                    resp.status = RESP_SUCCESS;
+                    printf(
+                        "Server: Client %d UNDO(%d,%d) -> '%s'\n", 
+                        req.client_id, node->line, node->pos, node->prev_word
+                    );
+                }
+                free(node);
+            }
+            pthread_mutex_unlock(&doc_mutex);
+            send_response(req.client_id, &resp);
             continue;
         }
 
@@ -158,39 +247,14 @@ int main(void) {
         int owner = lock_owner[req.line][req.pos];
 
         if (req.req_type == REQ_READ) {
-            /* ACCESS CONTROL LOGIC */
-            int allowed = 0;
-            
-            if (owner == 0) {
-                /* Not locked by anyone -> Allowed */
-                allowed = 1;
-            } else {
-                /* Locked by someone */
-                if (req.is_print) {
-                    /* STRICT RULE: For print_doc snapshots, if it's locked, 
-                       it's dropped (even if owned by self). This fixes test_locked_words. */
-                    allowed = 0; 
-                } else {
-                    /* Normal READ: Allow if owner is self (Fixes test1). Deny if others. */
-                    if (owner == req.client_id + 1) allowed = 1;
-                    else allowed = 0;
-                }
-            }
-
-            if (!allowed) {
+            if (owner != 0 && owner != req.client_id + 1) {
                 resp.status = RESP_DROPPED;
                 resp.word[0] = '\0';
-                if (req.is_print)
-                     printf("Server: Client %d PRINT_DOC READ(%d,%d) DROPPED\n", req.client_id, req.line, req.pos);
-                else 
-                     printf("Server: Client %d READ LOCK(%d,%d) DENIED\n", req.client_id, req.line, req.pos);
+                if (!req.is_print) printf("Server: Client %d READ LOCK(%d,%d) DENIED\n", req.client_id, req.line, req.pos);
             } else {
                 resp.status = RESP_SUCCESS;
                 strncpy(resp.word, doc[req.line][req.pos], MAX_STRING_LEN);
-                resp.word[MAX_STRING_LEN] = '\0';
-                if (req.is_print) {
-                     printf("Server: Client %d PRINT_DOC READ(%d,%d) SUCCESS\n", req.client_id, req.line, req.pos);
-                } else {
+                if (!req.is_print) {
                      printf("Server: Client %d READ LOCK(%d,%d) GRANTED\n", req.client_id, req.line, req.pos);
                      printf("Server: Client %d READ(%d,%d) SUCCESS - Value: '%s'\n", req.client_id, req.line, req.pos, resp.word);
                 }
@@ -205,14 +269,21 @@ int main(void) {
                 printf("Server: Client %d WRITE LOCK(%d,%d) DENIED\n", req.client_id, req.line, req.pos);
                 send_response(req.client_id, &resp);
             } else {
+                /* BONUS: Save old state to history before overwriting */
+                push_history(req.line, req.pos, doc[req.line][req.pos]);
+
                 lock_owner[req.line][req.pos] = req.client_id + 1;
                 strncpy(doc[req.line][req.pos], req.word, MAX_STRING_LEN);
-                doc[req.line][req.pos][MAX_STRING_LEN] = '\0';
+                
+                log_change(req.line, req.pos, req.word);
+
                 resp.status = RESP_SUCCESS;
                 pthread_mutex_unlock(&doc_mutex);
 
-                printf("Server: Client %d WRITE LOCK(%d,%d) GRANTED - Value: '%s', sleeping for %dms\n",
-                       req.client_id, req.line, req.pos, req.word, req.duration_ms);
+                printf(
+                    "Server: Client %d WRITE LOCK(%d,%d) GRANTED - Value: '%s', sleeping for %dms\n",
+                    req.client_id, req.line, req.pos, req.word, req.duration_ms
+                );
                 
                 send_response(req.client_id, &resp);
 

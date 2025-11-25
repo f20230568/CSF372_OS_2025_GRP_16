@@ -1,4 +1,4 @@
-/* client.c - Final Version */
+/* client.c - BONUS: Supports UNDO command */
 
 #define _POSIX_C_SOURCE 199309L 
 #include <stdio.h>
@@ -24,6 +24,8 @@
 #define REQ_READ 1
 #define REQ_WRITE 2
 #define REQ_SHUTDOWN 3 
+#define REQ_UNDO 4 /* BONUS */
+
 #define RESP_SUCCESS 0
 #define RESP_DROPPED 1
 #define RESP_ERROR 2
@@ -81,12 +83,14 @@ static void *print_doc_thread(void *arg) {
     int cid = *(int*)arg;
     free(arg);
     request_t req; response_t resp;
+
     char outname[64];
     snprintf(outname, sizeof(outname), "output_client%d.txt", cid);
 
     while (running) {
         sleep(2);
-        if (!running) break; 
+        if (!running) break;
+
         FILE *of = fopen(outname, "w");
         if (!of) continue;
         for (int line = 0; line < GRID_SIZE; ++line) {
@@ -127,20 +131,22 @@ int main(int argc, char **argv) {
     int retries = 10;
     while (1) {
         server_mqd = mq_open(MQ_NAME_SERVER, O_WRONLY);
-        if (server_mqd != (mqd_t)-1) break; 
+        if (server_mqd != (mqd_t)-1) break;
         if (retries-- <= 0) return 1;
-        usleep(500000); 
+        usleep(500000);
     }
 
     char mqname[64];
     snprintf(mqname, sizeof(mqname), "%s%d", MQ_NAME_CLIENT_PREFIX, cid);
     mq_unlink(mqname);
+
     struct mq_attr attr = {0, MQ_MAXMSG, MAX_MSG_SIZE, 0};
     client_mqd = mq_open(mqname, O_CREAT | O_RDONLY, 0666, &attr);
     if (client_mqd == (mqd_t)-1) return 1;
 
     usleep((10 - cid) * 200000);
     printf("Client %d: Starting\n", cid);
+
     pthread_t ptid;
     int *parg = malloc(sizeof(int));
     *parg = cid;
@@ -170,6 +176,16 @@ int main(int argc, char **argv) {
                 if (sscanf(p, " %d", &tm) == 1) {
                     printf("Client %d: Sleeping for %dms\n", cid, tm);
                     msleep(tm);
+                }
+            } else if (strcmp(cmd, "UNDO") == 0) {
+                request_t req = {REQ_UNDO, cid, 0, 0, "", 0, 0};
+                response_t resp;
+                printf("Client %d: Requesting UNDO\n", cid);
+                if (send_request_and_wait_response(&req, &resp) != -1) {
+                    if (resp.status == RESP_SUCCESS)
+                        printf("Client %d: UNDO SUCCESS\n", cid);
+                    else
+                        printf("Client %d: UNDO FAILED/DROPPED\n", cid);
                 }
             } else if (strcmp(cmd, "READ") == 0) {
                 int l, pos;
@@ -202,14 +218,15 @@ int main(int argc, char **argv) {
                     }
                 }
             }
-            usleep(10000); 
+            usleep(10000);
         }
         fclose(f);
     }
+
     sleep(3);
-    running = 0; 
+    running = 0;
     pthread_join(ptid, NULL);
-    
+
     request_t req;
     memset(&req, 0, sizeof(req));
     req.req_type = REQ_SHUTDOWN;
